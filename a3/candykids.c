@@ -47,10 +47,9 @@ void* kid_thread_function(void* arg)
 	do{
 		candy_t *extracted_candy = ((candy_t *) bbuff_blocking_extract());
 		double delay = current_time_in_ms() - extracted_candy->time_stamp_in_ms;
-		stats_record_produced(extracted_candy->factory_number);
 		stats_record_consumed(extracted_candy->factory_number, delay);
-		free(extracted_candy);
-		// printf("Got candy from factory %d, made at %lf\n", extracted_candy->factory_number, extracted_candy->time_stamp_in_ms);
+		stats_record_produced(extracted_candy->factory_number);
+		//printf("Got candy from factory %d, made at %lf\n", extracted_candy->factory_number, extracted_candy->time_stamp_in_ms);
 		sleep(rand() % 2);
 	}while(true);
 }
@@ -90,6 +89,7 @@ int main(int argc, char const *argv[])
 	// pthread_mutex_init(&lock, NULL);
 	srand(time(0));
 	bbuff_init();
+	printf("factories passed in: %d\n", factories);
 	stats_init(factories);
 	for (int i = 0; i < factories; ++i)
 	{
