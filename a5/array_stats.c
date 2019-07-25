@@ -14,10 +14,10 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 	long min = 0;
 	long buf = 0;
 	long i = 0;
-	struct array_stats* stuff = NULL;
-	stuff->sum = 0;
-	stuff->max = 0;
-	stuff->min = 0;
+	struct array_stats stuff;
+	stuff.min = 0;
+	stuff.max = 0;
+	stuff.sum = 0;
 	if (size <= 0)
 	{
 		printk("size is <= 0\n");
@@ -56,13 +56,25 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 			min = buf;
 		}
 	}
-	stuff->sum = sum;
-	stuff->max = max;
-	stuff->min = min;
-	printk("Stuff->sum is %ld\n", stuff->sum);
-	printk("Stuff->max is %ld\n", stuff->max);
-	printk("Stuff->min is %ld\n", stuff->min);
-	if (copy_to_user(stats, stuff, sizeof(struct array_stats*)) != 0)
+	printk("Stuff.sum is %ld\n", stuff.sum);
+	printk("Stuff.max is %ld\n", stuff.max);
+	printk("Stuff.min is %ld\n", stuff.min);
+	// if (copy_to_user(&stats->sum, &sum, sizeof(struct array_stats*)) != 0)
+	// {
+	// 	printk("Failed to write stats to user\n");
+	// 	return -EFAULT;
+	// }
+	// if (copy_to_user(&stats->max, &max, sizeof(struct array_stats*)) != 0)
+	// {
+	// 	printk("Failed to write stats to user\n");
+	// 	return -EFAULT;
+	// }
+	// if (copy_to_user(&stats->min, &min, sizeof(struct array_stats*)) != 0)
+	// {
+	// 	printk("Failed to write stats to user\n");
+	// 	return -EFAULT;
+	// }
+	if (copy_to_user(stats, &stuff, sizeof(struct array_stats)) != 0)
 	{
 		printk("Failed to write stats to user\n");
 		return -EFAULT;
