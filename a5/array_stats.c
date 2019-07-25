@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <limits.h>
 #include "array_stats.h"
 
 asmlinkage long sys_array_stats(
@@ -8,8 +9,8 @@ asmlinkage long sys_array_stats(
 
 asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long size){
 	long sum = 0;
-	long max = 0;
-	long min = 0;
+	long max = LONG_MIN;
+	long min = LONG_MAX;
 	long buf = 0;
 	struct array_stats* stuff;
 	if (size <= 0)
@@ -23,7 +24,7 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 		printk("stats or data is NULL\n");
 		return -EFAULT;
 	}
-	for (long i = 1; i < size; ++i)
+	for (long i = 0; i < size; ++i)
 	{
 		if (copy_from_user(&buf, &data[i], sizeof(long)) != 0)
 		{
