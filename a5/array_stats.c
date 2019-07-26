@@ -12,7 +12,6 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 	long sum = 0;
 	long max = 0;
 	long min = 0;
-	// long buf[size];
 	long buf = 0;
 	struct array_stats test;
 	long i = 0;
@@ -72,20 +71,5 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 		printk("Failed to write stats to user\n");
 		return -EFAULT;
 	}
-	// if (copy_to_user(&stats->, &stuff, sizeof(struct array_stats)) != 0)
-	// {
-	// 	printk("Failed to write stats to user\n");
-	// 	return -EFAULT;
-	// }
-	// if (copy_to_user(stats, &stuff, sizeof(struct array_stats)) != 0)
-	// {
-	// 	printk("Failed to write stats to user\n");
-	// 	return -EFAULT;
-	// }
-	// if (copy_to_user(stats, &stuff, sizeof(struct array_stats)) != 0)
-	// {
-	// 	printk("Failed to write stats to user\n");
-	// 	return -EFAULT;
-	// }
 	return 0;
 }
