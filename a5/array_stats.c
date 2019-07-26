@@ -36,7 +36,7 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 		printk("stats or data is NULL\n");
 		return -EFAULT;
 	}
-	printk("BUF TESTING\n")
+	printk("BUF TESTING\n");
 	if (copy_from_user(&buf, &data[0], sizeof(long)) != 0)
 	{
 		return -EFAULT;
@@ -47,6 +47,10 @@ asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long siz
 	printk("buf=%ld\n", buf);
 	for (i = 1; i < size; ++i)
 	{
+		if (copy_from_user(&buf, &data[i], sizeof(long)) != 0)
+		{
+			return -EFAULT;
+		}
 		sum += buf;
 		if (buf > max)
 		{
