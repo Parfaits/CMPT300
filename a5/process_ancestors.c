@@ -68,6 +68,13 @@ asmlinkage long sys_process_ancestors(struct process_info info_array[], long siz
 		}
 		info.num_children = count_children;
 		info.num_siblings = count_sibling;
+		printk("info.pid is %ld", info.pid);
+		printk("info.state is %ld", info.state);
+		printk("info.uid is %ld", info.uid);
+		printk("info.nvcsw is %ld", info.nvcsw);
+		printk("info.nivcsw is %ld", info.nivcsw);
+		printk("info.num_children is %ld", info.num_children);
+		printk("info.num_siblings is %ld", info.num_siblings);
 		filled++;
 		if (copy_to_user(&info_array[i], &info, sizeof(struct process_info)) != 0)
 		{
