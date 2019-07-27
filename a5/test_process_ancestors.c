@@ -35,8 +35,8 @@ int main(int argc, char *argv[])
 	// test_negative_few();
 	// test_many();
 
-	printf("TESTING BAD ADDR\n");
-	test_bad_addr();
+	// printf("TESTING BAD ADDR\n");
+	// test_bad_addr();
 
 	test_print_summary();
 	return 0;
@@ -48,11 +48,12 @@ int main(int argc, char *argv[])
  ***********************************************************/
 void test_positive_few()
 {
-	do_syscall_working(1, (long*)0); // nothing filled
-	do_syscall_working(1, (long*)1); // everything filled
-	do_syscall_working(2, (long*)1); //partially filled
-	do_syscall_working(56, (long*)10);
-	do_syscall_working(765, (long*)765);
+	long i;
+	do_syscall_working(1, &i); // nothing filled
+	do_syscall_working(1, &i); // everything filled
+	do_syscall_working(2, &i); //partially filled
+	do_syscall_working(5, &i);
+	do_syscall_working(10, &i);
 }
 void test_negative_few()
 {
@@ -182,7 +183,7 @@ static int do_syscall(struct process_info info_array[], long size, long *num_fil
 {
 	current_syscall_test_num++;
 	printf("\nTest %d: ..Diving to kernel level\n", current_syscall_test_num);
-	int result = syscall(_PROCESS_ANCESTORS_,info_array,size,num_filled);
+	int result = syscall(_PROCESS_ANCESTORS_,info_array,size, num_filled);
 	int my_errno = errno;
 	printf("..Rising to user level w/ result = %d", result);
 	if (result < 0) {
@@ -196,7 +197,7 @@ static int do_syscall(struct process_info info_array[], long size, long *num_fil
 }
 static void do_syscall_working(long size, long *num_filled)
 {
-	struct process_info info_array[5];
+	struct process_info info_array[size];
 	int result = do_syscall(info_array, size, num_filled);
 
 	TEST(result == 0);
