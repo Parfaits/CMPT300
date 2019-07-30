@@ -56,14 +56,14 @@ asmlinkage long sys_process_ancestors(struct process_info info_array[], long siz
 		info.uid =  task->cred->uid.val;
 		info.nvcsw = task->nvcsw;
 		info.nivcsw = task->nivcsw;
-		list_for_each(head_children, &current->children){
-			info.num_children++;
+		list_for_each(head_children, &task->children){
+			count_children++;
 			temp = list_entry(head_children, struct task_struct, children);
 			
 		}
 		temp = NULL;
-		list_for_each(head_sibling, &current->sibling){
-			info.num_siblings++;
+		list_for_each(head_sibling, &task->sibling){
+			count_sibling++;
 			temp = list_entry(head_sibling, struct task_struct, sibling);
 		}
 		temp = NULL;
@@ -83,6 +83,8 @@ asmlinkage long sys_process_ancestors(struct process_info info_array[], long siz
 			printk("Error copying info to user\n");
 			return -EFAULT;
 		}
+		count_children = 0;
+		count_sibling = 0;
 		if (task->parent->pid == task->pid)
 		{
 			break;
