@@ -1,0 +1,274 @@
+diff -rupN linux-4.13/arch/x86/entry/syscalls/syscall_64.tbl ../../../../../../../home/jya121/cmpt300/linux-4.13/arch/x86/entry/syscalls/syscall_64.tbl
+--- linux-4.13/arch/x86/entry/syscalls/syscall_64.tbl	2017-09-03 13:56:17.000000000 -0700
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/arch/x86/entry/syscalls/syscall_64.tbl	2019-07-26 11:07:57.163598033 -0700
+@@ -339,6 +339,12 @@
+ 330	common	pkey_alloc		sys_pkey_alloc
+ 331	common	pkey_free		sys_pkey_free
+ 332	common	statx			sys_statx
++#340 common cs300_test sys_cs300_test
++341 common array_stats sys_array_stats
++342 common process_ancestors sys_process_ancestors
++
++
++
+ 
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff -rupN linux-4.13/cs300/array_stats.c ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/array_stats.c
+--- linux-4.13/cs300/array_stats.c	1969-12-31 16:00:00.000000000 -0800
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/array_stats.c	2019-07-31 13:30:24.661502883 -0700
+@@ -0,0 +1,75 @@
++#include <linux/kernel.h>
++#include <linux/uaccess.h>
++#include <linux/errno.h>
++#include "array_stats.h"
++
++asmlinkage long sys_array_stats(
++                struct array_stats *stats,
++                long data[],
++                long size);
++
++asmlinkage long sys_array_stats(struct array_stats *stats, long data[], long size){
++	long sum = 0;
++	long max = 0;
++	long min = 0;
++	long buf = 0;
++	struct array_stats test;
++	long i = 0;
++	struct array_stats stuff;
++	stuff.min = 0;
++	stuff.max = 0;
++	stuff.sum = 0;
++	printk("size is %ld\n", size);
++	if (size <= 0)
++	{
++		printk("size is <= 0\n");
++		return -EINVAL;
++	}
++	if (copy_from_user(&test, stats, sizeof(struct array_stats)))
++	{
++		printk("Invalid address for stats\n");
++		return -EFAULT;
++	}
++	if (stats == NULL || data == NULL)
++	{
++		printk("stats or data is NULL\n");
++		return -EFAULT;
++	}
++	printk("BUF TESTING\n");
++	if (copy_from_user(&buf, &data[0], sizeof(long)) != 0)
++	{
++		return -EFAULT;
++	}
++	max = buf;
++	min = buf;
++	sum += buf;
++	printk("buf=%ld\n", buf);
++	for (i = 1; i < size; ++i)
++	{
++		if (copy_from_user(&buf, &data[i], sizeof(long)) != 0)
++		{
++			return -EFAULT;
++		}
++		sum += buf;
++		if (buf > max)
++		{
++			max = buf;
++		}
++		if (buf < min)
++		{
++			min = buf;
++		}
++	}
++	stuff.sum = sum;
++	stuff.min = min;
++	stuff.max = max;
++	printk("Stuff.sum is %ld\n", stuff.sum);
++	printk("Stuff.max is %ld\n", stuff.max);
++	printk("Stuff.min is %ld\n", stuff.min);
++	if (copy_to_user(stats, &stuff, sizeof(struct array_stats)) != 0)
++	{
++		printk("Failed to write stats to user\n");
++		return -EFAULT;
++	}
++	return 0;
++}
+\ No newline at end of file
+diff -rupN linux-4.13/cs300/array_stats.h ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/array_stats.h
+--- linux-4.13/cs300/array_stats.h	1969-12-31 16:00:00.000000000 -0800
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/array_stats.h	2019-07-25 17:26:59.867965927 -0700
+@@ -0,0 +1,11 @@
++// Define the array_stats struct for the array_stats sys-call.
++#ifndef _ARRAY_STATS_H_
++#define _ARRAY_STATS_H_
++
++struct array_stats{
++    long min;
++    long max;
++    long sum;
++};
++
++#endif
+\ No newline at end of file
+diff -rupN linux-4.13/cs300/cs300_test.c ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/cs300_test.c
+--- linux-4.13/cs300/cs300_test.c	1969-12-31 16:00:00.000000000 -0800
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/cs300_test.c	2019-07-25 15:37:02.447034205 -0700
+@@ -0,0 +1,14 @@
++#include <linux/kernel.h>
++// Implement a HelloWorld system call
++// Argument is passed from call in user space.
++
++asmlinkage long sys_cs300_test(int argument)
++
++{
++long result = 0;
++printk("Hello World!\n");
++printk("--syscall argument %d\n", argument);
++result = argument + 1;
++printk("--returning %d + 1 = %ld\n", argument, result);
++return result;
++}
+\ No newline at end of file
+diff -rupN linux-4.13/cs300/Makefile ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/Makefile
+--- linux-4.13/cs300/Makefile	1969-12-31 16:00:00.000000000 -0800
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/Makefile	2019-07-26 11:08:09.194573192 -0700
+@@ -0,0 +1 @@
++obj-y := array_stats.o process_ancestors.o
+\ No newline at end of file
+diff -rupN linux-4.13/cs300/process_ancestors.c ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/process_ancestors.c
+--- linux-4.13/cs300/process_ancestors.c	1969-12-31 16:00:00.000000000 -0800
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/process_ancestors.c	2019-07-31 13:29:40.725783761 -0700
+@@ -0,0 +1,98 @@
++#include <linux/kernel.h>
++#include <linux/uaccess.h>
++#include <linux/errno.h>
++#include <linux/sched.h>
++#include <linux/cred.h>
++#include "process_ancestors.h"
++
++asmlinkage long sys_process_ancestors(
++                struct process_info info_array[],
++                long size,
++                long *num_filled);
++
++asmlinkage long sys_process_ancestors(struct process_info info_array[], long size, long *num_filled){
++	long check_num_filled = 0;
++	long filled = 0;
++	long i = 0;
++	long j = 0;
++	long count_children = 0;
++	long count_sibling = -1;
++	struct process_info info;
++	struct task_struct *task = current;
++	struct list_head *head_children;
++	struct list_head *head_sibling;
++	printk("size is %ld\n", size);
++	if (size <= 0)
++	{
++		printk("size was 0\n");
++		return -EINVAL;
++	}
++	if (copy_from_user(&check_num_filled, num_filled, sizeof(long)) != 0)
++	{
++		printk("Error copying num_filled\n");
++		return -EFAULT;
++	}
++	if (info_array == NULL || num_filled == NULL)
++	{
++		printk("info_array or num_filled was NULL\n");
++		return -EFAULT;
++	}
++	printk("num_filled is %ld\n", check_num_filled);
++	for (i = 0; i < size; ++i)
++	{
++		if (copy_from_user(&info, &info_array[i], sizeof(struct process_info)) != 0)
++		{
++			printk("Error copying info_array[%ld]\n", i);
++			return -EFAULT;
++		}
++		info.pid = task->pid;
++		for (j = 0; j < ANCESTOR_NAME_LEN; ++j)
++		{
++			info.name[j] = task->comm[j];
++		}
++		j = 0;
++		info.state = task->state;
++		info.uid =  task->cred->uid.val;
++		info.nvcsw = task->nvcsw;
++		info.nivcsw = task->nivcsw;
++		list_for_each(head_children, &task->children){
++			count_children++;
++		}
++		list_for_each(head_sibling, &task->sibling){
++			count_sibling++;
++		}
++		if(count_sibling<0){
++			count_sibling=0;
++		}
++		info.num_children = count_children;
++		info.num_siblings = count_sibling;
++		// printk("info.pid is %ld", info.pid);
++		// printk("info.state is %ld", info.state);
++		// printk("info.uid is %ld", info.uid);
++		// printk("info.nvcsw is %ld", info.nvcsw);
++		// printk("info.nivcsw is %ld", info.nivcsw);
++		// printk("info.num_children is %ld", info.num_children);
++		// printk("info.num_siblings is %ld", info.num_siblings);
++		// printk("================================================================");
++		filled++;
++		if (copy_to_user(&info_array[i], &info, sizeof(struct process_info)) != 0)
++		{
++			printk("Error copying info to user\n");
++			return -EFAULT;
++		}
++		count_children = 0;
++		count_sibling = -1;
++		if (task->parent->pid == task->pid)
++		{
++			break;
++		}
++		task = task->parent;
++	}
++	printk("filled is %ld\n", filled);
++	if (copy_to_user(num_filled, &filled, sizeof(long)) != 0)
++	{
++		printk("Error copying filled to user\n");
++		return -EFAULT;
++	}
++	return 0;
++}
+\ No newline at end of file
+diff -rupN linux-4.13/cs300/process_ancestors.h ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/process_ancestors.h
+--- linux-4.13/cs300/process_ancestors.h	1969-12-31 16:00:00.000000000 -0800
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/cs300/process_ancestors.h	2019-07-30 12:19:34.747540654 -0700
+@@ -0,0 +1,17 @@
++// Structure to hold values returned by process_ancestors sys-call
++#ifndef _PROCESS_ANCESTORS_H
++#define _PROCESS_ANCESTORS_H
++
++#define ANCESTOR_NAME_LEN 16
++struct process_info {
++    long pid;                     /* Process ID */
++    char name[ANCESTOR_NAME_LEN]; /* Program name of process */
++    long state;                   /* Current process state */
++    long uid;                     /* User ID of process owner */
++    long nvcsw;                   /* # voluntary context switches */
++    long nivcsw;                  /* # involuntary context switches */
++    long num_children;            /* # children process has */
++    long num_siblings;            /* # sibling process has */
++};
++
++#endif
+\ No newline at end of file
+diff -rupN linux-4.13/Makefile ../../../../../../../home/jya121/cmpt300/linux-4.13/Makefile
+--- linux-4.13/Makefile	2017-09-03 13:56:17.000000000 -0700
++++ ../../../../../../../home/jya121/cmpt300/linux-4.13/Makefile	2019-07-25 15:38:54.882115872 -0700
+@@ -941,7 +941,7 @@ endif
+ 
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/ cs300/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
