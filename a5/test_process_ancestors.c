@@ -2,24 +2,31 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
+#include <string.h>
 #include "process_ancestors.h"
+
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 // Sys-call number:
 #define _PROCESS_ANCESTORS_ 342
 
+
 /**
  * Prototypes
  */
-void test_positive_few(void);
-void test_negative_few(void);
-void test_many(void);
-void test_bad_addr(void);
-static void do_syscall_working(long size, long *num_filled);
+void test_GOOD(void);
+void test_BAD(void);
+void UID_TEST(void);
+static void check_pid_name(struct process_info info_array[],long num_filled);
+static void print(struct process_info info_array[],long num_filled);
+static void do_syscall_working(long size);
 static void do_syscall_failing(struct process_info info_array[], long size, long *num_filled, long ret_code);
 static void test_internal(_Bool success, int lineNum, char* argStr);
 static void test_print_summary(void);
@@ -30,13 +37,22 @@ static void test_print_summary(void);
  ***********************************************************/
 int main(int argc, char *argv[])
 {
-	printf("TESTING POSITIVE FEW\n");
-	test_positive_few();
-	// test_negative_few();
-	// test_many();
+	// printf("TESTING POSITIVE FEW\n");
+	
+	pid_t pid = fork();
+	if(pid == 0)
+	{
+		test_GOOD();
+		test_BAD();
+	}
+	else
+	{
+		waitpid(-1,NULL,0);
+		test_GOOD();
+		test_BAD();
 
-	// printf("TESTING BAD ADDR\n");
-	// test_bad_addr();
+	}
+
 
 	test_print_summary();
 	return 0;
@@ -46,47 +62,20 @@ int main(int argc, char *argv[])
 /***********************************************************
  * Testing routines for specific test
  ***********************************************************/
-void test_positive_few()
+void test_GOOD()
 {
-	long i;
-	do_syscall_working(1, &i); // nothing filled
-	do_syscall_working(1, &i); // everything filled
-	do_syscall_working(2, &i); //partially filled
-	do_syscall_working(5, &i);
-	do_syscall_working(10, &i);
-}
-void test_negative_few()
-{
-	// do_syscall_working((long[]){-1}, 1);
-	// do_syscall_working((long[]){-1, -2}, 2);
-	// do_syscall_working((long[]){-1, 2, 3}, 3);
-	// do_syscall_working((long[]){0, -2, 4, -6}, 4);
+	do_syscall_working(1);
+	do_syscall_working(2);
+	do_syscall_working(3);
+	do_syscall_working(4);
+	do_syscall_working(5);
+	do_syscall_working(6);
 }
 
-void fill(long data[], long size)
+void test_BAD()
 {
-	for (int i = 0; i < size; i++) {
-		data[i] = rand();
-		if (i % 2 == 0) {
-			data[i] *= -1;
-		}
-	}
-}
-#define MEG (1024*1024)
-void test_many()
-{
-	for (int i = 1; i <= 5; i++) {
-		long size = MEG * i;
-		long *data = malloc(sizeof(data[0]) * size);
-		fill(data, size);
-		// do_syscall_working(data, size);
-		free(data);
-	}
-}
 
-void test_bad_addr()
-{
-	struct process_info info_array[0];
+	struct process_info *info_array = malloc(10*sizeof(struct process_info));
 	// num_filled > size
 	do_syscall_failing(info_array, 1, (long*)3, EFAULT);
 	do_syscall_failing(info_array, 2, (long*)3, EFAULT);
@@ -101,8 +90,12 @@ void test_bad_addr()
 	do_syscall_failing(NULL, 10, (long*)5,EFAULT);
 	do_syscall_failing((struct process_info[]){1LL}, 5, (long*)2,EFAULT);
 	do_syscall_failing((struct process_info[]){123456789012345689LL}, 5, (long*)2,EFAULT);
-}
 
+	// Test size bigger than allocated memory
+	do_syscall_failing(info_array, 1000000, NULL, EFAULT);
+
+	free(info_array);
+}
 
 
 /***********************************************************
@@ -137,44 +130,14 @@ static void test_internal(_Bool success, int lineNum, char* argStr)
 
 static void test_print_summary(void)
 {
+	printf("===============================================================\n");
 	printf("\nExecution finished.\n");
 	printf("%4d/%d tests passed.\n", numTestPassed, numTests);
 	printf("%4d/%d tests FAILED.\n", numTests - numTestPassed, numTests);
 	printf("%4d/%d unique sys-call testing configurations FAILED.\n", num_syscall_tests_failed, current_syscall_test_num);
+	printf("===============================================================\n");
 }
 
-
-/***********************************************************
- * Routines to double check array answers
- ***********************************************************/
-static long find_max(long data[], long size)
-{
-	long max = data[0];
-	for (int i = 0; i < size; i++) {
-		if (data[i] > max) {
-			max = data[i];
-		}
-	}
-	return max;
-}
-static long find_min(long data[], long size)
-{
-	long min = data[0];
-	for (int i = 0; i < size; i++) {
-		if (data[i] < min) {
-			min = data[i];
-		}
-	}
-	return min;
-}
-static long find_sum(long data[], long size)
-{
-	long sum = 0;
-	for (int i = 0; i < size; i++) {
-		sum += data[i];
-	}
-	return sum;
-}
 
 /***********************************************************
  * Functions to actually make the sys-call and test results
@@ -183,7 +146,7 @@ static int do_syscall(struct process_info info_array[], long size, long *num_fil
 {
 	current_syscall_test_num++;
 	printf("\nTest %d: ..Diving to kernel level\n", current_syscall_test_num);
-	int result = syscall(_PROCESS_ANCESTORS_,info_array,size, num_filled);
+	int result = syscall(_PROCESS_ANCESTORS_,info_array,size,num_filled);
 	int my_errno = errno;
 	printf("..Rising to user level w/ result = %d", result);
 	if (result < 0) {
@@ -195,18 +158,76 @@ static int do_syscall(struct process_info info_array[], long size, long *num_fil
 	return my_errno;
 
 }
-static void do_syscall_working(long size, long *num_filled)
+static void do_syscall_working(long size)
 {
 	struct process_info info_array[size];
-	int result = do_syscall(info_array, size, num_filled);
-
+	long num_filled = -69420;
+	if (setuid(69420) != 0) 
+	{
+	    exit(1);
+	}
+	int result = do_syscall(info_array, size, &num_filled);
+	//test error code is 0
 	TEST(result == 0);
-	// TEST(stats.min == find_min(data, size));
-	// TEST(stats.max == find_max(data, size));
-	// TEST(stats.sum == find_sum(data, size));
+	//test num filled > 0 and num filled <= size
+	TEST(num_filled > 0);
+	TEST(num_filled <= size);
+	//Checking the pid values of the info array
+	check_pid_name(info_array,num_filled);
+	//Checking the uid values of the info array
+
+	if(num_filled >= 1)
+	{
+		TEST(info_array[0].uid == 69420);
+	}
+	// Checking the name of process
+
+	print(info_array,num_filled);
 }
 static void do_syscall_failing(struct process_info info_array[], long size, long *num_filled, long ret_code)
 {
 	int result = do_syscall(info_array, size, num_filled);
 	TEST(result == ret_code);
+}
+
+static void check_pid_name(struct process_info info_array[],long num_filled)
+{
+	long swapper = 0;
+	long pid = getpid();
+	char temp[ANCESTOR_NAME_LEN];
+	int i,j;
+	// check if pid matches with info_array[0].pid
+	TEST(pid == info_array[0].pid);
+	// make sure other pid values in info array do not match with pid
+	for (int i = 1; i < num_filled; ++i)
+	{
+		TEST(pid != info_array[i].pid);
+	}
+	//checking the name 
+	for (j = 0; j < num_filled; ++j)
+	{
+		for (i = 0; i < ANCESTOR_NAME_LEN; ++i)
+		{
+			temp[i] = info_array[j].name[i];
+		}
+	}
+	if(strcmp(temp,"swapper/0") == 0)
+	{
+		TEST(info_array[j-1].pid == swapper);
+	}
+}
+
+
+
+/***********************************************************
+ * Printing info array 
+ ***********************************************************/
+
+static void print(struct process_info info_array[],long num_filled)
+{
+	printf("%5s\t %5s\t %20s\t %5s\t %5s\t %5s\t %5s\t %10s\t %10s\t\n", "i", "pid", "name", "state", "uid", "nvcsw" , "nivcsw", "num_children", "num_siblings");
+	for (int i = 0; i <  num_filled; ++i)
+	{
+		printf("%5d\t %5ld\t %20s\t %5ld\t %5ld\t %5ld\t %5ld\t %10ld\t %10ld\t\n", i,info_array[i].pid,info_array[i].name,info_array[i].state,info_array[i].uid,info_array[i].nvcsw,info_array[i].nivcsw,info_array[i].num_children,info_array[i].num_siblings);
+	}
 }
