@@ -16,10 +16,9 @@ asmlinkage long sys_process_ancestors(struct process_info info_array[], long siz
 	long i = 0;
 	long j = 0;
 	long count_children = 0;
-	long count_sibling = 0;
+	long count_sibling = -1;
 	struct process_info info;
 	struct task_struct *task = current;
-	struct task_struct *temp = NULL;
 	struct list_head *head_children;
 	struct list_head *head_sibling;
 	printk("size is %ld\n", size);
@@ -58,15 +57,13 @@ asmlinkage long sys_process_ancestors(struct process_info info_array[], long siz
 		info.nivcsw = task->nivcsw;
 		list_for_each(head_children, &task->children){
 			count_children++;
-			temp = list_entry(head_children, struct task_struct, children);
-			
 		}
-		temp = NULL;
 		list_for_each(head_sibling, &task->sibling){
 			count_sibling++;
-			temp = list_entry(head_sibling, struct task_struct, sibling);
 		}
-		temp = NULL;
+		if(count_sibling<0){
+			count_sibling=0;
+		}
 		info.num_children = count_children;
 		info.num_siblings = count_sibling;
 		// printk("info.pid is %ld", info.pid);
@@ -84,7 +81,7 @@ asmlinkage long sys_process_ancestors(struct process_info info_array[], long siz
 			return -EFAULT;
 		}
 		count_children = 0;
-		count_sibling = 0;
+		count_sibling = -1;
 		if (task->parent->pid == task->pid)
 		{
 			break;
